@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Mohammad Hossein Moradi — PHP / WordPress Backend Developer specializing in custom plugins, REST APIs, integrations and product development.">
+  <meta name="description" content="Mohammad Hossein Moradi — PHP / WordPress Backend Developer specializing in custom plugins, REST APIs, deployment tooling, integrations and product development.">
   <meta name="theme-color" content="#0b1020">
   <meta property="og:title" content="Mohammad Hossein Moradi — PHP / WordPress Backend Developer">
-  <meta property="og:description" content="PHP / WordPress Backend Developer specializing in custom plugins, REST APIs, integrations and product development.">
+  <meta property="og:description" content="PHP / WordPress Backend Developer specializing in custom plugins, REST APIs, deployment tooling, integrations and product development.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mhmoradi93.github.io/">
   <meta property="og:image" content="https://mhmoradi93.github.io/assets/shenasnapet-pets.webp">
@@ -44,8 +44,8 @@
           <p class="lead">
             Software developer focused on PHP backend development, custom WordPress plugins,
             REST APIs, data-driven workflows and production-ready web products.
-            Recently, I have been building startup products such as
-            <strong>Shenasnapet</strong> and <strong>Hoviateman</strong>.
+            Recently, I have been building products such as
+            <strong>Shenasnapet</strong>, <strong>PushLocal</strong> and <strong>Hoviateman</strong>.
           </p>
 
           <div class="hero-actions">
@@ -74,7 +74,7 @@
               <li>Custom plugin architecture</li>
               <li>REST API design & integrations</li>
               <li>MySQL & custom data models</li>
-              <li>WooCommerce / payment workflows</li>
+              <li>Deployment tooling & rollback safety</li>
               <li>Responsive product UI</li>
             </ul>
           </div>
@@ -182,6 +182,103 @@
           </div>
         </article>
 
+        <article class="project pushlocal-project">
+          <div class="project-copy">
+            <div class="project-topline">
+              <span class="badge">Open source</span>
+              <span class="project-type">Developer tooling</span>
+            </div>
+            <h3>PushLocal</h3>
+            <p class="project-subtitle">Local-first deployment tool for WordPress plugins</p>
+            <p>
+              PushLocal removes the repetitive ZIP → upload → replace loop from WordPress plugin
+              development. It pairs an installed plugin with its local source folder, compares both
+              sides, lets the developer review exactly what changed, and deploys only approved
+              differences with safety checks and rollback support.
+            </p>
+
+            <div class="project-grid">
+              <div>
+                <h4>Deployment workflow</h4>
+                <ul>
+                  <li>Persistent local-folder pairing for a target WordPress plugin</li>
+                  <li>Local/server SHA-256 manifests and precise change comparison</li>
+                  <li>Incremental deployment for new and modified files</li>
+                  <li>Optional Mirror Mode for backed-up remote-only deletions</li>
+                  <li>Protected staging, deployment history and manual rollback</li>
+                  <li>Automatic compensation when a deployment fails part-way through</li>
+                </ul>
+              </div>
+              <div>
+                <h4>Safety & hardening</h4>
+                <ul>
+                  <li>Environment preflight before file mutation</li>
+                  <li>PHP syntax validation before active files are replaced</li>
+                  <li>Remote-change conflict detection before deployment</li>
+                  <li>Path and symlink protections plus per-plugin deployment locks</li>
+                  <li>Backup retention and abandoned-upload cleanup controls</li>
+                  <li>Rollback conflict checks to avoid overwriting newer server changes</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="stack">
+              <span>PHP</span><span>WordPress</span><span>JavaScript</span><span>REST API</span>
+              <span>SHA-256</span><span>File System</span><span>Rollback</span><span>Open Source</span>
+            </div>
+
+            <div class="project-links">
+              <a href="https://mhmoradi93.github.io/pushlocal/" target="_blank" rel="noopener noreferrer">Live product page ↗</a>
+              <a href="https://github.com/mhmoradi93/pushlocal" target="_blank" rel="noopener noreferrer">GitHub source ↗</a>
+            </div>
+          </div>
+
+          <div class="project-visual pushlocal-visual">
+            <figure class="pushlocal-live-preview">
+              <div class="pushlocal-browser-bar" aria-hidden="true">
+                <span></span><span></span><span></span>
+                <strong>mhmoradi93.github.io/pushlocal/</strong>
+              </div>
+              <div class="pushlocal-frame-wrap">
+                <iframe
+                  src="https://mhmoradi93.github.io/pushlocal/"
+                  title="PushLocal live product page preview"
+                  loading="lazy"
+                  tabindex="-1"
+                ></iframe>
+              </div>
+              <figcaption>Live project page preview · free, open source and local-first</figcaption>
+            </figure>
+
+            <div class="pushlocal-summary-card">
+              <div class="pushlocal-brand-row">
+                <img
+                  src="https://raw.githubusercontent.com/mhmoradi93/pushlocal/main/assets/brand/mark.svg"
+                  alt=""
+                  width="54"
+                  height="54"
+                  loading="lazy"
+                >
+                <div>
+                  <strong>PushLocal</strong>
+                  <span>Skip the ZIP. Push the change.</span>
+                </div>
+              </div>
+
+              <div class="pushlocal-flow" aria-label="PushLocal workflow">
+                <span>Check</span><b>→</b><span>Review</span><b>→</b><span>Deploy</span>
+              </div>
+
+              <div class="pushlocal-signals">
+                <span>SHA-256 verified</span>
+                <span>PHP syntax checked</span>
+                <span>Rollback ready</span>
+                <span>No PushLocal cloud</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
         <article class="project">
           <div class="project-copy">
             <div class="project-topline">
@@ -281,7 +378,7 @@
                 authentication and responsive interfaces.
               </p>
               <p class="muted">
-                Main recent products: Shenasnapet and Hoviateman.
+                Main recent products: Shenasnapet, PushLocal and Hoviateman.
               </p>
             </div>
           </article>
@@ -356,7 +453,7 @@
           </div>
           <div class="skill-card">
             <h3>Tools & Practices</h3>
-            <p>Git, WordPress debugging, performance optimization, access control, production troubleshooting and iterative development.</p>
+            <p>Git, deployment safety, SHA-256 verification, rollback workflows, access control, WordPress debugging and production troubleshooting.</p>
           </div>
         </div>
 
@@ -410,8 +507,8 @@
           </p>
           <p>
             I enjoy working on systems where WordPress is used as an application platform,
-            not just a page builder: custom plugins, APIs, workflows, integrations and
-            domain-specific products.
+            not just a page builder: custom plugins, APIs, workflows, integrations,
+            developer tooling and domain-specific products.
           </p>
           <p>
             I am interested in remote and relocation opportunities with international teams,
