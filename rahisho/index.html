@@ -51,8 +51,9 @@
             </div>
             <div class="iran-map-view" id="iran-map-view">
               <div class="iran-map-title"><span class="iran-map-dot"></span><div><b>رد پای تو در ایران</b><small>استان‌ها را لمس کن تا سفرهایت را روشن کنی</small></div></div>
-              <div class="iran-map-shape" id="iran-map-shape" aria-label="نقشه‌ی شماتیک استان‌های ایران"></div>
-              <div class="iran-map-hint">نقشه‌ی استان‌ها <span>·</span> انتخاب شهرها با لمس استان</div>
+              <div class="iran-map-zoom" aria-label="بزرگ‌نمایی نقشه‌ی ایران"><button id="iran-zoom-in" title="بزرگ‌نمایی">＋</button><button id="iran-zoom-out" title="کوچک‌نمایی">−</button><button id="iran-zoom-reset" title="نمای کامل">↺</button></div>
+              <div class="iran-map-shape" id="iran-map-shape" aria-label="نقشه‌ی تعاملی استان‌های ایران"></div>
+              <div class="iran-map-hint"><span class="legend-dot"></span> استان‌هایی که دیدی <span>·</span> برای دیدن شهرها روی استان بزن</div>
             </div>
             <div class="map-caption"><span class="legend-dot"></span><span>کشورهایی که دیدی</span><span class="caption-sep">·</span><span>برای ثبت کشور جدید روی کره بزن</span></div>
             <button class="zoom-iran" id="zoom-iran"><span>⌖</span> ریز سفرهای ایران <b>←</b></button>
@@ -64,10 +65,11 @@
         <aside class="side-column">
           <section class="upcoming-card">
             <div class="section-heading"><div><span class="eyebrow">به‌زودی با راهیشو</span><h2>سفرهای پیش رو</h2></div><button class="dots" aria-label="گزینه‌ها">•••</button></div>
-            <article class="trip-card">
+            <article class="trip-card" data-trip="qeshm" tabindex="0" role="button" aria-label="جزئیات سفر قشم">
               <div class="trip-cover"><div class="sun-disc"></div><div class="mountain mountain-back"></div><div class="mountain mountain-front"></div><span class="trip-badge">ثبت‌نام باز</span><span class="trip-destination">قشم</span><span class="trip-subtitle">جنوبِ گرم، دریا و سکوت</span></div>
               <div class="trip-details"><div class="trip-date"><span>۱۲</span><small>آذر</small></div><div class="trip-info"><strong>قشم؛ جزیره‌ی نقره‌ای</strong><span>۴ روزه <i>·</i> طبیعت‌گردی <i>·</i> ۸ نفر</span></div><button class="trip-more" aria-label="جزئیات سفر">←</button></div>
             </article>
+            <article class="trip-mini" data-trip="japan" tabindex="0" role="button" aria-label="جزئیات سفر ژاپن"><span class="trip-mini-pin">●</span><span><b>ژاپن؛ مسیر شکوفه‌ها</b><small>توکیو · ۸ روزه · ۲۴ فروردین</small></span><span class="trip-mini-arrow">←</span></article>
             <div class="trip-footer"><span><i class="pulse"></i> ۳ نفر به این سفر علاقه‌مندند</span><button id="more-trips">همه‌ی سفرها <b>←</b></button></div>
           </section>
           <section class="memory-card"><div class="memory-top"><span class="memory-icon">✳</span><span class="eyebrow">خاطره‌ی نقشه</span><button class="dots">•••</button></div><p>«بعضی شهرها رو باید<br/><strong>پیاده کشف کرد.</strong>»</p><div class="memory-foot"><span>📍 اصفهان، ایران</span><button id="mark-isfahan">افزودن خاطره <span>＋</span></button></div></section>
@@ -101,8 +103,18 @@
     </section>
   </div>
 
+  <div class="modal-backdrop" id="trip-modal" aria-hidden="true">
+    <section class="modal trip-modal" role="dialog" aria-modal="true" aria-labelledby="trip-title">
+      <button class="modal-close" data-close="trip-modal" aria-label="بستن">×</button><span class="modal-kicker" id="trip-kicker">سفر پیش رو</span><h2 id="trip-title">قشم؛ جزیره‌ی نقره‌ای</h2><p id="trip-summary"></p>
+      <div class="trip-modal-route"><span class="trip-modal-pin">⌖</span><div><b id="trip-destination"></b><small id="trip-dates"></small></div></div>
+      <div class="trip-modal-description" id="trip-description"></div>
+      <div class="modal-actions"><span class="selected-note">دموی سفرهای آینده‌ی راهیشو</span><button class="primary-button" data-close="trip-modal">متوجه شدم <span>✓</span></button></div>
+    </section>
+  </div>
+
   <div class="toast" id="toast" role="status"></div>
+  <script src="iran-map-data.js?v=20261120g"></script>
   <script src="app.js"></script>
-  <script type="module" src="earth3d.js?v=20261120f"></script>
+  <script type="module" src="earth3d.js?v=20261120g"></script>
 </body>
 </html>
