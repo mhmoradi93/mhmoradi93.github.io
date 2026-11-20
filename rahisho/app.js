@@ -17,6 +17,11 @@ const provinceData = [
 ];
 const initial = {countries:['TUR','ITA','FRA'], provinces:['تهران','اصفهان','فارس','خراسان رضوی'], cities:{'تهران':['تهران'],'اصفهان':['اصفهان'],'فارس':['شیراز'],'خراسان رضوی':['مشهد']}};
 const provinceShortNames={'آذربایجان غربی':'آذ. غربی','آذربایجان شرقی':'آذ. شرقی','چهارمحال و بختیاری':'چهارمحال','کهگیلویه و بویراحمد':'کهگیلویه','سیستان و بلوچستان':'سیستان','خراسان شمالی':'خ. شمالی','خراسان رضوی':'خ. رضوی','خراسان جنوبی':'خ. جنوبی'};
+const upcomingTrips=[
+  {id:'qeshm',title:'قشم؛ جزیره‌ی نقره‌ای',destination:'قشم، ایران',date:'۱۲ آذر · ۴ روزه',summary:'یک سفر طبیعت‌گردی در جنوب ایران',description:'چهار روز برای دیدن دره‌ی ستارگان، جنگل‌های حرا، ساحل‌های آرام و تجربه‌ی حال‌وهوای جزیره. این برنامه در نسخه‌ی دموست و جزئیات اجرایی بعداً تکمیل می‌شود.',coordinates:[56.27,26.95]},
+  {id:'japan',title:'ژاپن؛ مسیر شکوفه‌ها',destination:'توکیو، ژاپن',date:'۲۴ فروردین · ۸ روزه',summary:'قدم‌زدن در توکیو و تماشای شکوفه‌های بهاری',description:'یک برنامه‌ی هشت‌روزه برای گشت‌وگذار در محله‌های توکیو، باغ‌ها و مسیرهای شکوفه‌ی گیلاس. نشان قرمز روی کره، مقصد سفر آینده را مشخص می‌کند.',coordinates:[139.69,35.68]}
+];
+window.RAHISHO_UPCOMING_TRIPS=upcomingTrips;
 let state;
 try { state = JSON.parse(localStorage.getItem('rahisho-map-state')) || initial; } catch { state = structuredClone(initial); }
 state.countries=(state.countries||[]).map(id=>iso2to3[id]||id);
@@ -72,10 +77,28 @@ function selectProvince(name){
   else if(!state.cities[name]?.length)state.provinces=state.provinces.filter(p=>p!==name);
   renderProvinceButtons();renderCityList();renderIranMap();save();
 }
+let iranZoom=1;
+const provinceAliases={'کهگیلویه و بویر احمد':'کهگیلویه و بویراحمد'};
+function normalizedProvince(name){return provinceAliases[name]||name}
 function renderIranMap(){
-  const map=$('#iran-map-shape');map.innerHTML='';
-  provinceData.forEach(([name])=>{const button=document.createElement('button');button.type='button';button.className='province-map-chip'+(state.provinces.includes(name)?' active':'');button.textContent=provinceShortNames[name]||name;button.title=name;button.setAttribute('aria-label',name);button.addEventListener('click',()=>{selectProvince(name);openModal('iran-modal')});map.append(button)});
+  const host=$('#iran-map-shape');if(!host)return;
+  const shapes=window.RAHISHO_IRAN_PROVINCES||[];const size=window.RAHISHO_IRAN_MAP_VIEWBOX||{width:814,height:748};
+  host.innerHTML='';
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox',`0 0 ${size.width} ${size.height}`);svg.setAttribute('role','img');svg.setAttribute('aria-label','نقشه‌ی تعاملی استان‌های ایران');
+  const g=document.createElementNS(svg.namespaceURI,'g');g.classList.add('iran-province-layer');
+  shapes.forEach(shape=>{
+    const name=normalizedProvince(shape.fa);const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',shape.d);path.setAttribute('class','iran-province'+(state.provinces.includes(name)?' visited':''));path.setAttribute('tabindex','0');path.setAttribute('role','button');path.dataset.province=name;path.setAttribute('aria-label',`${name}${state.provinces.includes(name)?'، ثبت‌شده':''}`);
+    const title=document.createElementNS(svg.namespaceURI,'title');title.textContent=name;path.append(title);
+    const activate=()=>{selectProvince(name);openModal('iran-modal')};path.addEventListener('click',activate);path.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate()}});g.append(path);
+  });
+  const pin=document.createElementNS(svg.namespaceURI,'g');pin.setAttribute('class','iran-trip-pin');pin.setAttribute('transform','translate(574 660)');pin.setAttribute('role','button');pin.setAttribute('tabindex','0');pin.setAttribute('aria-label','سفر پیش رو: قشم');pin.innerHTML='<circle class="pin-halo" r="18" cy="-10"/><path class="pin-shape" d="M0 0C-2-5-11-13-11-21a11 11 0 1 1 22 0C11-13 2-5 0 0Z"/><circle class="pin-core" cy="-21" r="3.5"/><title>سفر پیش رو: قشم</title>';
+  const openQeshm=()=>openTrip('qeshm');pin.addEventListener('click',e=>{e.stopPropagation();openQeshm()});pin.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openQeshm()}});g.append(pin);svg.append(g);host.append(svg);applyIranZoom();
 }
+function applyIranZoom(){const g=$('#iran-map-shape .iran-province-layer');if(!g)return;const size=window.RAHISHO_IRAN_MAP_VIEWBOX||{width:814,height:748};g.style.transform=`translate(${(size.width*(1-iranZoom))/2}px ${(size.height*(1-iranZoom))/2}px) scale(${iranZoom})`}
+function openTrip(id){const trip=upcomingTrips.find(item=>item.id===id);if(!trip)return;$('#trip-title').textContent=trip.title;$('#trip-destination').textContent=trip.destination;$('#trip-dates').textContent=trip.date;$('#trip-summary').textContent=trip.summary;$('#trip-description').textContent=trip.description;openModal('trip-modal')}
+$$('[data-trip]').forEach(card=>{const activate=()=>openTrip(card.dataset.trip);card.addEventListener('click',activate);card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate()}})});
+$('#iran-zoom-in').addEventListener('click',()=>{iranZoom=Math.min(2.5,iranZoom+.25);applyIranZoom()});$('#iran-zoom-out').addEventListener('click',()=>{iranZoom=Math.max(1,iranZoom-.25);applyIranZoom()});$('#iran-zoom-reset').addEventListener('click',()=>{iranZoom=1;applyIranZoom()});
+$('#iran-map-shape').addEventListener('wheel',e=>{e.preventDefault();iranZoom=Math.max(1,Math.min(2.5,iranZoom+(e.deltaY<0?.12:-.12)));applyIranZoom()},{passive:false});
 function setMapView(view){
   $$('.map-tab').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   $('#map-stage').classList.toggle('iran-view',view==='iran');
@@ -93,7 +116,7 @@ $('#zoom-iran').addEventListener('click',()=>{setMapView('iran');renderProvinceB
 $$('.map-tab').forEach(button=>button.addEventListener('click',()=>setMapView(button.dataset.view)));
 $('#rotate-globe').addEventListener('click',()=>document.dispatchEvent(new Event('rahisho:rotate')));
 $('#mark-isfahan').addEventListener('click',()=>{if(!state.provinces.includes('اصفهان'))state.provinces.push('اصفهان');state.cities['اصفهان']=[...new Set([...(state.cities['اصفهان']||[]),'اصفهان'])];save();showToast('اصفهان به نقشه‌ی سفرهات اضافه شد')});
-$('#more-trips').addEventListener('click',()=>showToast('فهرست سفرهای تازه‌ی راهیشو به‌زودی اینجاست'));
+$('#more-trips').addEventListener('click',()=>openTrip('qeshm'));
 $$('[data-page]').forEach(button=>button.addEventListener('click',()=>{const page=button.dataset.page;$$('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));if(page==='home')return;const names={journeys:'سفرها',community:'آدم‌های هم‌مسیر',profile:'پروفایل'};showToast(`${names[page]}؛ به‌زودی با راهیشو`)}));
 renderIranMap();updateStats();
 document.addEventListener('rahisho:world-ready',event=>{
