@@ -3,9 +3,17 @@ import * as THREE from 'three';
 const host=document.getElementById('earth-canvas');
 const width=2048,height=1024,longitudeOffset=55;
 let features=[],visited=new Set((window.rahishoState?.countries)||[]),dragging=false,dragged=false,lastX=0,lastY=0,hovered=null,spinBoost=0,lastHoverAt=0;
+let fallbackCtx=null,fallbackLastFrame=0;
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(34,1,.1,80);camera.position.set(0,0,3.45);
-const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});
+let renderer,webglAvailable=true;
+try{renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'})}
+catch(error){
+  webglAvailable=false;
+  const canvas=document.createElement('canvas');canvas.setAttribute('aria-label','کره‌ی تعاملی؛ برای انتخاب کشور روی آن بزن');canvas.tabIndex=0;fallbackCtx=canvas.getContext('2d');
+  renderer={domElement:canvas,capabilities:{getMaxAnisotropy:()=>1},setPixelRatio(){},setSize(w,h){const ratio=Math.min(window.devicePixelRatio||1,1.5);canvas.width=Math.max(1,Math.round(w*ratio));canvas.height=Math.max(1,Math.round(h*ratio));canvas.style.width=`${w}px`;canvas.style.height=`${h}px`;fallbackCtx?.setTransform(ratio,0,0,ratio,0,0)},render(){drawFallbackGlobe()}};
+  console.warn('WebGL is unavailable; showing the interactive 2D globe fallback.',error);
+}
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));renderer.setSize(400,360,false);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.domElement.setAttribute('aria-label','کره‌ی سه‌بعدی؛ برای انتخاب کشور روی آن بزن');renderer.domElement.tabIndex=0;host.append(renderer.domElement);
 const earthGroup=new THREE.Group();scene.add(earthGroup);
 const sphereGeometry=new THREE.SphereGeometry(1,96,72);
@@ -42,6 +50,26 @@ function geoPosition(lon,lat,r=1.014){const phi=(90-lat)*Math.PI/180,theta=((lon
 function rebuildMarkers(){markerGroup.clear();for(const id of visited){const loc=markerLocations[id];if(!loc)continue;const pin=new THREE.Mesh(new THREE.SphereGeometry(.009,10,10),new THREE.MeshBasicMaterial({color:0xffd75e}));pin.position.copy(geoPosition(loc[0],loc[1],1.012));markerGroup.add(pin)}}
 
 function makeGlow(){const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');const radial=g.createRadialGradient(64,64,8,64,64,63);radial.addColorStop(0,'rgba(38,113,191,.25)');radial.addColorStop(.55,'rgba(30,91,169,.1)');radial.addColorStop(1,'rgba(18,54,110,0)');g.fillStyle=radial;g.fillRect(0,0,128,128);return new THREE.CanvasTexture(c)}
+function rotatedPoint(lon,lat){
+  const a=(lon+longitudeOffset)*Math.PI/180,p=lat*Math.PI/180,c=Math.cos(p),x=-c*Math.cos(a),y=Math.sin(p),z=c*Math.sin(a),cx=Math.cos(earthGroup.rotation.x),sx=Math.sin(earthGroup.rotation.x),cy=Math.cos(earthGroup.rotation.y),sy=Math.sin(earthGroup.rotation.y);
+  const y1=y*cx-z*sx,z1=y*sx+z*cx;return{x:x*cy+z1*sy,y:y1,z:-x*sy+z1*cy};
+}
+function drawFallbackGlobe(){
+  if(!fallbackCtx||performance.now()-fallbackLastFrame<32)return;fallbackLastFrame=performance.now();
+  const rect=host.getBoundingClientRect(),w=Math.max(1,rect.width),h=Math.max(1,rect.height),ctx=fallbackCtx,cx=w/2,cy=h/2,r=Math.max(30,Math.min(w*.43,h*.43)*(3.45/camera.position.z));
+  const sky=ctx.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#071428');sky.addColorStop(.5,'#0b1e38');sky.addColorStop(1,'#061326');ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+  const glow=ctx.createRadialGradient(cx,cy,r*.72,cx,cy,r*1.35);glow.addColorStop(0,'rgba(53,143,218,.24)');glow.addColorStop(1,'rgba(25,87,160,0)');ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
+  const sphere=ctx.createRadialGradient(cx-r*.35,cy-r*.38,r*.04,cx,cy,r);sphere.addColorStop(0,'#173e58');sphere.addColorStop(.72,'#0b263e');sphere.addColorStop(1,'#061326');ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle=sphere;ctx.fill();
+  ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
+  for(const feature of features){
+    const selected=visited.has(feature.id);ctx.fillStyle=selected?'rgba(247,199,76,.77)':'rgba(27,67,89,.72)';ctx.strokeStyle=selected?'rgba(255,226,112,.98)':'rgba(245,196,72,.9)';ctx.lineWidth=selected?1.7:1.05;ctx.shadowColor=selected?'#ffe36b':'#f7c64d';ctx.shadowBlur=selected?8:4;
+    for(const polygon of geometryPolygons(feature.geometry||{})){
+      const ring=polygon[0];if(!ring?.length)continue;const projected=ring.map(([lon,lat])=>rotatedPoint(lon,lat));if(projected.reduce((sum,p)=>sum+p.z,0)/projected.length<-.12)continue;
+      ctx.beginPath();let active=false;for(let i=0;i<projected.length;i++){const p=projected[i];if(p.z>.015){const x=cx+p.x*r,y=cy-p.y*r;if(!active){ctx.moveTo(x,y);active=true}else ctx.lineTo(x,y)}else active=false}ctx.closePath();ctx.fill();ctx.stroke();
+    }
+  }
+  ctx.restore();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.strokeStyle='rgba(124,201,245,.8)';ctx.lineWidth=1.5;ctx.shadowColor='#61c4ff';ctx.shadowBlur=15;ctx.stroke();ctx.shadowBlur=0;
+}
 function mapX(lon){return (((lon+longitudeOffset+3600)%360)/360)*width}
 function ringPath(target,ring,offset){if(!ring?.length)return;const pts=ring.map(([lon,lat])=>[mapX(lon),((90-lat)/180)*height]);for(let i=1;i<pts.length;i++){const prev=pts[i-1][0],cur=pts[i][0];if(cur-prev>.5*width)for(let j=i;j<pts.length;j++)pts[j][0]-=width;else if(prev-cur>.5*width)for(let j=i;j<pts.length;j++)pts[j][0]+=width}target.moveTo(pts[0][0]+offset,pts[0][1]);for(let i=1;i<pts.length;i++)target.lineTo(pts[i][0]+offset,pts[i][1]);target.closePath()}
 function geometryPolygons(geometry){return geometry.type==='Polygon'?[geometry.coordinates]:geometry.coordinates}
@@ -64,7 +92,11 @@ function pointInRing(point,ring){let inside=false;const [lon,lat]=point;for(let 
   const yi=ring[i][1],yj=ring[j][1];const crosses=((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi||1e-9)+xi);if(crosses)inside=!inside
 }return inside}
 function featureContains(feature,lon,lat){return geometryPolygons(feature.geometry||{}).some(poly=>pointInRing([lon,lat],poly[0])&&!poly.slice(1).some(r=>pointInRing([lon,lat],r)))}
-function countryAt(event){const rect=renderer.domElement.getBoundingClientRect();mouse.x=((event.clientX-rect.left)/rect.width)*2-1;mouse.y=-((event.clientY-rect.top)/rect.height)*2+1;raycaster.setFromCamera(mouse,camera);const hit=raycaster.intersectObject(earth,false)[0];if(!hit?.uv)return null;const lon=((hit.uv.x*360-longitudeOffset+540)%360)-180,lat=hit.uv.y*180-90;return features.find(f=>featureContains(f,lon,lat))||null}
+function countryAt(event){
+  const rect=renderer.domElement.getBoundingClientRect();
+  if(!webglAvailable){const r=Math.max(30,Math.min(rect.width*.43,rect.height*.43)*(3.45/camera.position.z)),x=(event.clientX-rect.left-rect.width/2)/r,y=-(event.clientY-rect.top-rect.height/2)/r;if(x*x+y*y>1)return null;const z=Math.sqrt(1-x*x-y*y),cx=Math.cos(earthGroup.rotation.y),sx=Math.sin(earthGroup.rotation.y),x1=x*cx-z*sx,z1=x*sx+z*cx,cy=Math.cos(earthGroup.rotation.x),sy=Math.sin(earthGroup.rotation.x),y1=y*cy+z1*sy,z2=-y*sy+z1*cy,lon=((Math.atan2(z2,-x1)*180/Math.PI-longitudeOffset+540)%360)-180,lat=Math.asin(THREE.MathUtils.clamp(y1,-1,1))*180/Math.PI;return features.find(f=>featureContains(f,lon,lat))||null}
+  mouse.x=((event.clientX-rect.left)/rect.width)*2-1;mouse.y=-((event.clientY-rect.top)/rect.height)*2+1;raycaster.setFromCamera(mouse,camera);const hit=raycaster.intersectObject(earth,false)[0];if(!hit?.uv)return null;const lon=((hit.uv.x*360-longitudeOffset+540)%360)-180,lat=hit.uv.y*180-90;return features.find(f=>featureContains(f,lon,lat))||null
+}
 const raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
 function emitCountry(feature,event){if(!feature)return false;event.stopPropagation();document.dispatchEvent(new CustomEvent('rahisho:country-hit',{detail:{id:feature.id,name:feature.properties?.name||feature.id}}));return true}
 renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;dragged=false;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId)});
@@ -87,6 +119,6 @@ async function init(){
     else{const response=await fetch('./countries.geojson');if(!response.ok)throw new Error('country data unavailable');data=await response.json()}
     features=data.features||[];document.dispatchEvent(new CustomEvent('rahisho:world-ready',{detail:features}));renderMap();rebuildMarkers();resize();requestAnimationFrame(animate)
   }
-  catch(error){host.innerHTML='<div class="earth-error">کره‌ی سه‌بعدی بارگذاری نشد. صفحه را با یک وب‌سرور محلی باز کن.</div>';console.error(error)}
+  catch(error){host.innerHTML='<div class="earth-error">داده‌های نقشه بارگذاری نشد. صفحه را تازه‌سازی کن.</div>';console.error(error)}
 }
 init();
