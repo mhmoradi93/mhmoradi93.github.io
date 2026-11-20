@@ -105,7 +105,8 @@ renderer.domElement.addEventListener('pointerup',e=>{dragging=false;renderer.dom
 renderer.domElement.addEventListener('click',e=>{if(dragged){dragged=false;return}emitCountry(countryAt(e),e)});
 renderer.domElement.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();document.getElementById('globe-wrap').click()}});
 renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();camera.position.z=THREE.MathUtils.clamp(camera.position.z+e.deltaY*.0014,2.5,4.7)},{passive:false});
-document.addEventListener('rahisho:state',event=>{visited=new Set(event.detail?.countries||[]);rebuildMarkers();renderMap()});
+document.addEventListener('rahisho:state',event=>{visited=new Set(event.detail?.countries||[]);rebuildMarkers();renderMap();fallbackLastFrame=0;renderer.render(scene,camera)});
+document.addEventListener('rahisho:country-confirmed',event=>{const id=event.detail?.id;if(!id)return;visited.add(id);rebuildMarkers();renderMap();fallbackLastFrame=0;renderer.render(scene,camera)});
 document.addEventListener('rahisho:rotate',()=>{spinBoost=.055});
 window.addEventListener('resize',resize);
 const observer=new ResizeObserver(resize);observer.observe(host);
