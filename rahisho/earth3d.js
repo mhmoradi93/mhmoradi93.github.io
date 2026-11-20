@@ -45,6 +45,11 @@ for(const [rx,rz,tilt,color] of [[1.29,1.06,.12,0x315988],[1.37,1.14,-.34,0x3a66
 }
 const orbitDots=[0xf3c84e,0x78b0ed,0xf19f70].map(color=>{const mesh=new THREE.Mesh(new THREE.SphereGeometry(.024,14,14),new THREE.MeshBasicMaterial({color}));scene.add(mesh);return mesh});
 const markerGroup=new THREE.Group();earthGroup.add(markerGroup);
+const tripPinGroup=new THREE.Group();earthGroup.add(tripPinGroup);
+const tripPinTexture=makeTripPinTexture();
+const tripLocations=(window.RAHISHO_UPCOMING_TRIPS||[]).map(trip=>({id:trip.id,lon:trip.coordinates[0],lat:trip.coordinates[1]}));
+function rebuildTripPins(){tripPinGroup.clear();tripLocations.forEach(trip=>{const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tripPinTexture,transparent:true,depthTest:true,depthWrite:false,side:THREE.DoubleSide}));sprite.position.copy(geoPosition(trip.lon,trip.lat,1.045));sprite.scale.set(.105,.15,1);sprite.userData.tripId=trip.id;tripPinGroup.add(sprite)})}
+function makeTripPinTexture(){const c=document.createElement('canvas');c.width=64;c.height=80;const x=c.getContext('2d');x.shadowColor='#611b22';x.shadowBlur=5;x.fillStyle='#d84142';x.beginPath();x.moveTo(32,76);x.bezierCurveTo(27,65,7,45,7,27);x.arc(32,27,25,Math.PI,0);x.bezierCurveTo(57,45,37,65,32,76);x.closePath();x.fill();x.shadowBlur=0;x.fillStyle='#fff';x.beginPath();x.arc(32,27,9,0,Math.PI*2);x.fill();const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;return texture}
 const markerLocations={TUR:[35,39],ITA:[12.5,42.5],FRA:[2,47],GEO:[44.8,42],ESP:[-3.7,40],ARE:[54,24],ARM:[45,40],THA:[101,16],DEU:[10,51],GRC:[22,39],AZE:[47.5,40.5],IRQ:[44,33],NLD:[5.3,52],PRT:[-8,39.5],CHE:[8,47],RUS:[37,56],EGY:[30,27],IND:[78,21],JPN:[138,37],USA:[-99,39]};
 function geoPosition(lon,lat,r=1.014){const phi=(90-lat)*Math.PI/180,theta=((lon+longitudeOffset+360)%360)*Math.PI/180;return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(theta))}
 function rebuildMarkers(){markerGroup.clear();for(const id of visited){const loc=markerLocations[id];if(!loc)continue;const pin=new THREE.Mesh(new THREE.SphereGeometry(.009,10,10),new THREE.MeshBasicMaterial({color:0xffd75e}));pin.position.copy(geoPosition(loc[0],loc[1],1.012));markerGroup.add(pin)}}
@@ -69,7 +74,9 @@ function drawFallbackGlobe(){
     }
   }
   ctx.restore();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.strokeStyle='rgba(124,201,245,.8)';ctx.lineWidth=1.5;ctx.shadowColor='#61c4ff';ctx.shadowBlur=15;ctx.stroke();ctx.shadowBlur=0;
+  tripLocations.forEach(trip=>{const p=rotatedPoint(trip.lon,trip.lat);if(p.z<.04)return;const x=cx+p.x*r,y=cy-p.y*r;drawTripPin(ctx,x,y,Math.max(12,r*.075))});
 }
+function drawTripPin(ctx,x,y,size){ctx.save();ctx.translate(x,y);ctx.scale(size/32,size/32);ctx.shadowColor='#38131999';ctx.shadowBlur=5;ctx.fillStyle='#d84142';ctx.beginPath();ctx.moveTo(0,30);ctx.bezierCurveTo(-3,22,-17,9,-17,-4);ctx.arc(0,-4,17,Math.PI,0);ctx.bezierCurveTo(17,9,3,22,0,30);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(0,-4,6,0,Math.PI*2);ctx.fill();ctx.restore()}
 function mapX(lon){return (((lon+longitudeOffset+3600)%360)/360)*width}
 function ringPath(target,ring,offset){if(!ring?.length)return;const pts=ring.map(([lon,lat])=>[mapX(lon),((90-lat)/180)*height]);for(let i=1;i<pts.length;i++){const prev=pts[i-1][0],cur=pts[i][0];if(cur-prev>.5*width)for(let j=i;j<pts.length;j++)pts[j][0]-=width;else if(prev-cur>.5*width)for(let j=i;j<pts.length;j++)pts[j][0]+=width}target.moveTo(pts[0][0]+offset,pts[0][1]);for(let i=1;i<pts.length;i++)target.lineTo(pts[i][0]+offset,pts[i][1]);target.closePath()}
 function geometryPolygons(geometry){return geometry.type==='Polygon'?[geometry.coordinates]:geometry.coordinates}
@@ -99,13 +106,17 @@ function countryAt(event){
 }
 const raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
 function emitCountry(feature,event){if(!feature)return false;event.stopPropagation();document.dispatchEvent(new CustomEvent('rahisho:country-hit',{detail:{id:feature.id,name:feature.properties?.name||feature.id}}));return true}
+function emitTrip(id,event){if(!id)return false;event.stopPropagation();document.dispatchEvent(new CustomEvent('rahisho:trip-hit',{detail:{id}}));return true}
+function tripAt(event){if(!webglAvailable){const rect=renderer.domElement.getBoundingClientRect(),r=Math.max(30,Math.min(rect.width*.43,rect.height*.43)*(3.45/camera.position.z)),cx=rect.width/2,cy=rect.height/2;for(const trip of tripLocations){const p=rotatedPoint(trip.lon,trip.lat);if(p.z<.04)continue;const x=cx+p.x*r,y=cy-p.y*r;if(Math.hypot(event.clientX-rect.left-x,event.clientY-rect.top-(y-r*.035))<Math.max(15,r*.09))return trip.id}return null}
+  const rect=renderer.domElement.getBoundingClientRect();mouse.x=((event.clientX-rect.left)/rect.width)*2-1;mouse.y=-((event.clientY-rect.top)/rect.height)*2+1;raycaster.setFromCamera(mouse,camera);return raycaster.intersectObjects(tripPinGroup.children,false)[0]?.object.userData.tripId||null
+}
 renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;dragged=false;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId)});
-renderer.domElement.addEventListener('pointermove',e=>{if(dragging){const dx=e.clientX-lastX,dy=e.clientY-lastY;if(Math.abs(dx)+Math.abs(dy)>4)dragged=true;earthGroup.rotation.y+=dx*.004;earthGroup.rotation.x=THREE.MathUtils.clamp(earthGroup.rotation.x+dy*.003,-.75,.75);lastX=e.clientX;lastY=e.clientY;return}if(performance.now()-lastHoverAt<70)return;lastHoverAt=performance.now();const feature=countryAt(e);hovered=feature;renderer.domElement.style.cursor=feature?'pointer':'grab'});
+renderer.domElement.addEventListener('pointermove',e=>{if(dragging){const dx=e.clientX-lastX,dy=e.clientY-lastY;if(Math.abs(dx)+Math.abs(dy)>4)dragged=true;earthGroup.rotation.y+=dx*.004;earthGroup.rotation.x=THREE.MathUtils.clamp(earthGroup.rotation.x+dy*.003,-.75,.75);lastX=e.clientX;lastY=e.clientY;return}if(performance.now()-lastHoverAt<70)return;lastHoverAt=performance.now();const trip=tripAt(e);const feature=trip?null:countryAt(e);hovered=feature;renderer.domElement.style.cursor=trip||feature?'pointer':'grab'});
 renderer.domElement.addEventListener('pointerup',e=>{dragging=false;renderer.domElement.releasePointerCapture(e.pointerId)});
-renderer.domElement.addEventListener('click',e=>{if(dragged){dragged=false;return}emitCountry(countryAt(e),e)});
+renderer.domElement.addEventListener('click',e=>{if(dragged){dragged=false;return}if(emitTrip(tripAt(e),e))return;emitCountry(countryAt(e),e)});
 renderer.domElement.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();document.getElementById('globe-wrap').click()}});
 renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();camera.position.z=THREE.MathUtils.clamp(camera.position.z+e.deltaY*.0014,2.5,4.7)},{passive:false});
-document.addEventListener('rahisho:state',event=>{visited=new Set(event.detail?.countries||[]);rebuildMarkers();renderMap();fallbackLastFrame=0;renderer.render(scene,camera)});
+document.addEventListener('rahisho:state',event=>{visited=new Set(event.detail?.countries||[]);rebuildMarkers();rebuildTripPins();renderMap();fallbackLastFrame=0;renderer.render(scene,camera)});
 document.addEventListener('rahisho:country-confirmed',event=>{const id=event.detail?.id;if(!id)return;visited.add(id);rebuildMarkers();renderMap();fallbackLastFrame=0;renderer.render(scene,camera)});
 document.addEventListener('rahisho:rotate',()=>{spinBoost=.055});
 window.addEventListener('resize',resize);
@@ -115,7 +126,7 @@ let start=performance.now();function animate(now){requestAnimationFrame(animate)
 async function init(){
   try{
     const response=await fetch('./countries.geojson?v=20261120d');if(!response.ok)throw new Error('country data unavailable');const data=await response.json();
-    features=data.features||[];document.dispatchEvent(new CustomEvent('rahisho:world-ready',{detail:features}));renderMap();rebuildMarkers();resize();requestAnimationFrame(animate)
+    features=data.features||[];document.dispatchEvent(new CustomEvent('rahisho:world-ready',{detail:features}));renderMap();rebuildMarkers();rebuildTripPins();resize();requestAnimationFrame(animate)
   }
   catch(error){host.innerHTML='<div class="earth-error">داده‌های نقشه بارگذاری نشد. صفحه را تازه‌سازی کن.</div>';console.error(error)}
 }
