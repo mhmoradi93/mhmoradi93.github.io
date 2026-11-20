@@ -16,6 +16,7 @@ const provinceData = [
   ['سیستان و بلوچستان',['زاهدان','چابهار','ایرانشهر']], ['خراسان شمالی',['بجنورد','آشخانه']], ['خراسان رضوی',['مشهد','نیشابور','تربت‌حیدریه']], ['خراسان جنوبی',['بیرجند','طبس']], ['هرمزگان',['بندرعباس','قشم','کیش']], ['سمنان',['سمنان','شاهرود','دامغان']]
 ];
 const initial = {countries:['TUR','ITA','FRA'], provinces:['تهران','اصفهان','فارس','خراسان رضوی'], cities:{'تهران':['تهران'],'اصفهان':['اصفهان'],'فارس':['شیراز'],'خراسان رضوی':['مشهد']}};
+const provinceShortNames={'آذربایجان غربی':'آذ. غربی','آذربایجان شرقی':'آذ. شرقی','چهارمحال و بختیاری':'چهارمحال','کهگیلویه و بویراحمد':'کهگیلویه','سیستان و بلوچستان':'سیستان','خراسان شمالی':'خ. شمالی','خراسان رضوی':'خ. رضوی','خراسان جنوبی':'خ. جنوبی'};
 let state;
 try { state = JSON.parse(localStorage.getItem('rahisho-map-state')) || initial; } catch { state = structuredClone(initial); }
 state.countries=(state.countries||[]).map(id=>iso2to3[id]||id);
@@ -73,7 +74,7 @@ function selectProvince(name){
 }
 function renderIranMap(){
   const map=$('#iran-map-shape');map.innerHTML='';
-  provinceData.forEach(([name])=>{const button=document.createElement('button');button.type='button';button.className='province-map-chip'+(state.provinces.includes(name)?' active':'');button.textContent=name.replace('آذربایجان ','آذ.').replace('خراسان ','خرا.').replace(' و بختیاری','').replace('کهگیلویه','کهگیل.').replace('چهارمحال','چهارمح.').replace('سیستان و بلوچستان','سیستان');button.title=name;button.addEventListener('click',()=>{selectProvince(name);openModal('iran-modal')});map.append(button)});
+  provinceData.forEach(([name])=>{const button=document.createElement('button');button.type='button';button.className='province-map-chip'+(state.provinces.includes(name)?' active':'');button.textContent=provinceShortNames[name]||name;button.title=name;button.setAttribute('aria-label',name);button.addEventListener('click',()=>{selectProvince(name);openModal('iran-modal')});map.append(button)});
 }
 function setMapView(view){
   $$('.map-tab').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
@@ -83,7 +84,7 @@ function setMapView(view){
 $('#globe-wrap').addEventListener('click',()=>openModal('country-modal'));
 $('#globe-wrap').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openModal('country-modal')}});
 $('#add-country').addEventListener('click',()=>openModal('country-modal'));
-$('#confirm-country').addEventListener('click',()=>{if(!pickedCountry)return;const c=countries.find(item=>item.id===pickedCountry);state.countries.push(pickedCountry);save();closeModal('country-modal');showToast(`${c?.flag||'🌍'} ${c?.name||pickedCountry} به نقشه‌ات اضافه شد`);pickedCountry=null});
+$('#confirm-country').addEventListener('click',()=>{if(!pickedCountry)return;const selected=pickedCountry,c=countries.find(item=>item.id===selected);state.countries.push(selected);save();document.dispatchEvent(new CustomEvent('rahisho:country-confirmed',{detail:{id:selected}}));closeModal('country-modal');showToast(`${c?.flag||'🌍'} ${c?.name||selected} به نقشه‌ات اضافه شد`);pickedCountry=null});
 $('#country-search').addEventListener('input',e=>renderCountries(e.target.value));
 $$('[data-close]').forEach(button=>button.addEventListener('click',()=>closeModal(button.dataset.close)));
 $$('.modal-backdrop').forEach(backdrop=>backdrop.addEventListener('click',e=>{if(e.target===backdrop)closeModal(backdrop.id)}));
