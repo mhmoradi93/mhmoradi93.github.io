@@ -113,10 +113,10 @@ function resize(){const rect=host.getBoundingClientRect();const w=Math.max(1,rec
 let start=performance.now();function animate(now){requestAnimationFrame(animate);if(!dragging)earthGroup.rotation.y+=.00023+spinBoost;spinBoost*=.94;if(spinBoost<.0001)spinBoost=0;const t=(now-start)*.00009;orbitLines.forEach((line,i)=>{const dot=orbitDots[i];const angle=(t*(i%2?-.8:1)+i*.38)%(Math.PI*2);const rx=[1.29,1.37,1.2][i],rz=[1.06,1.14,1.29][i];const p=new THREE.Vector3(Math.cos(angle)*rx,Math.sin(angle)*rz,0);p.applyEuler(line.rotation);dot.position.copy(p)});renderer.render(scene,camera)}
 async function init(){
   try{
-    let data;
+    let data=null;
     const compressed=await fetch('./countries.geojson.gz');
-    if(compressed.ok&&'DecompressionStream' in window){const stream=compressed.body.pipeThrough(new DecompressionStream('gzip'));data=await new Response(stream).json()}
-    else{const response=await fetch('./countries.geojson');if(!response.ok)throw new Error('country data unavailable');data=await response.json()}
+    if(compressed.ok&&'DecompressionStream' in window){try{const stream=compressed.body.pipeThrough(new DecompressionStream('gzip'));data=await new Response(stream).json()}catch(error){console.warn('Compressed map data could not be decoded; trying the plain GeoJSON file.',error)}}
+    if(!data){const response=await fetch('./countries.geojson');if(!response.ok)throw new Error('country data unavailable');data=await response.json()}
     features=data.features||[];document.dispatchEvent(new CustomEvent('rahisho:world-ready',{detail:features}));renderMap();rebuildMarkers();resize();requestAnimationFrame(animate)
   }
   catch(error){host.innerHTML='<div class="earth-error">داده‌های نقشه بارگذاری نشد. صفحه را تازه‌سازی کن.</div>';console.error(error)}
