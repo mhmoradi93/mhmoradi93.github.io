@@ -58,18 +58,24 @@ function renderCountries(filter=''){
 }
 function renderProvinceButtons(){
   const grid=$('#province-grid');grid.innerHTML='';
-  provinceData.forEach(([name])=>{const button=document.createElement('button');button.type='button';button.className='province-chip'+(state.provinces.includes(name)?' active':'');button.textContent=name;button.addEventListener('click',()=>selectProvince(name));grid.append(button)});
+  provinceData.forEach(([name])=>{const button=document.createElement('button');button.type='button';button.className='province-chip'+(state.provinces.includes(name)?' active':'');button.textContent=name;button.addEventListener('click',()=>{selectProvince(name);focusIranProvince(name)});grid.append(button)});
 }
+function currentCounties(){return (IRAN_DATA.counties&&IRAN_DATA.counties[currentProvince])||[]}
 function renderCityList(){
-  const entry=provinceData.find(p=>p[0]===currentProvince);if(!entry)return;
   $('#city-province-name').textContent=currentProvince;
-  const cities=$('#city-list');cities.innerHTML='';
-  entry[1].forEach(city=>{const button=document.createElement('button');button.type='button';button.className='city-chip'+((state.cities[currentProvince]||[]).includes(city)?' active':'');button.textContent=city;button.addEventListener('click',()=>{
-    const chosen=state.cities[currentProvince]||[];state.cities[currentProvince]=chosen.includes(city)?chosen.filter(c=>c!==city):[...chosen,city];
-    if(state.cities[currentProvince].length&&!state.provinces.includes(currentProvince))state.provinces.push(currentProvince);
-    if(!state.cities[currentProvince].length)delete state.cities[currentProvince];
-    renderCityList();renderProvinceButtons();renderIranMap();save();showToast(state.cities[currentProvince]?.includes(city)?`${city} به سفرهات اضافه شد`:`${city} از انتخاب‌ها برداشته شد`);
-  });cities.append(button)});
+  const list=$('#city-list');list.innerHTML='';
+  const counties=currentCounties();
+  if(!counties.length){list.innerHTML=`<span class="city-empty">${IRAN_DATA.failed?'داده‌ی شهرستان‌ها بارگذاری نشد':'در حال بارگذاری شهرستان‌ها…'}</span>`;return}
+  counties.forEach(county=>{const button=document.createElement('button');button.type='button';button.className='city-chip'+((state.cities[currentProvince]||[]).includes(county.fa)?' active':'');button.textContent=county.fa;button.addEventListener('click',()=>toggleCounty(currentProvince,county.fa));list.append(button)});
+}
+function toggleCounty(province,county){
+  const chosen=state.cities[province]||[];
+  state.cities[province]=chosen.includes(county)?chosen.filter(c=>c!==county):[...chosen,county];
+  if(state.cities[province].length&&!state.provinces.includes(province))state.provinces.push(province);
+  if(!state.cities[province].length)delete state.cities[province];
+  currentProvince=province;
+  renderCityList();renderProvinceButtons();renderIranMap();save();
+  showToast(state.cities[province]?.includes(county)?`${county} به سفرهات اضافه شد`:`${county} از انتخاب‌ها برداشته شد`);
 }
 function selectProvince(name){
   currentProvince=name;
@@ -77,28 +83,176 @@ function selectProvince(name){
   else if(!state.cities[name]?.length)state.provinces=state.provinces.filter(p=>p!==name);
   renderProvinceButtons();renderCityList();renderIranMap();save();
 }
-let iranZoom=1;
+/* ===== Iran map: provinces + shahrestans (real GeoJSON, OpenStreetMap boundaries clipped to the Natural Earth coastline) ===== */
+const SVGNS='http://www.w3.org/2000/svg';
+const IRAN_DATA={provinces:null,counties:null,loading:null,failed:false};
+const IRAN_BOUNDS={minLon:43.9,maxLon:63.5,minLat:25.0,maxLat:39.9};
+const IRAN_SCALE=47,IRAN_COS=Math.cos(32.5*Math.PI/180);
+const projX=lon=>(lon-IRAN_BOUNDS.minLon)*IRAN_COS*IRAN_SCALE;
+const projY=lat=>(IRAN_BOUNDS.maxLat-lat)*IRAN_SCALE;
+const IRAN_W=projX(IRAN_BOUNDS.maxLon),IRAN_H=projY(IRAN_BOUNDS.minLat);
 const provinceAliases={'کهگیلویه و بویر احمد':'کهگیلویه و بویراحمد'};
 function normalizedProvince(name){return provinceAliases[name]||name}
+function geomToPath(geom,dec){
+  const polys=geom.type==='Polygon'?[geom.coordinates]:geom.coordinates;let d='';
+  polys.forEach(poly=>poly.forEach(ring=>{ring.forEach((p,i)=>{d+=(i?'L':'M')+projX(p[0]).toFixed(dec)+' '+projY(p[1]).toFixed(dec)});d+='Z'}));
+  return d;
+}
+function countyPath(c){return c.d||(c.d=geomToPath(c.geometry,3))}
+function loadIranData(){
+  if(IRAN_DATA.loading)return IRAN_DATA.loading;
+  const get=url=>fetch(url).then(r=>{if(!r.ok)throw new Error(url);return r.json()});
+  IRAN_DATA.loading=Promise.all([get('./iran-provinces.geojson?v=20261121a'),get('./iran-counties.geojson?v=20261121a')]).then(([prov,cnt])=>{
+    IRAN_DATA.provinces=prov.features.map(f=>({id:f.properties.id,fa:f.properties.name_fa,en:f.properties.name_en,bbox:f.properties.bbox,d:geomToPath(f.geometry,2)}));
+    const by={};
+    cnt.features.forEach(f=>{const p=f.properties;(by[p.province_fa]=by[p.province_fa]||[]).push({id:p.id,fa:p.name_fa,en:p.name_en,bbox:p.bbox,geometry:f.geometry,d:null})});
+    Object.values(by).forEach(list=>list.sort((a,b)=>a.fa.localeCompare(b.fa,'fa')));
+    IRAN_DATA.counties=by;sanitizeIranState();
+  }).catch(err=>{IRAN_DATA.failed=true;console.warn('Iran map data failed to load',err)});
+  return IRAN_DATA.loading;
+}
+function sanitizeIranState(){
+  let changed=false;
+  Object.keys(state.cities||{}).forEach(p=>{
+    const valid=new Set(((IRAN_DATA.counties||{})[normalizedProvince(p)]||[]).map(c=>c.fa));
+    const kept=state.cities[p].filter(n=>valid.has(n));
+    if(kept.length!==state.cities[p].length){changed=true;if(kept.length)state.cities[p]=kept;else delete state.cities[p]}
+  });
+  if(changed)save();
+}
+const iranView={k:1,x:0,y:0};let focusedProvince=null,pendingFocus=null,iranDrag={moved:false};
+function iranEls(){const host=$('#iran-map-shape');return{host,svg:host&&host.querySelector('svg'),vp:host&&host.querySelector('.iran-viewport')}}
+function mk(tag,attrs={},parent){const el=document.createElementNS(SVGNS,tag);Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));if(parent)parent.append(el);return el}
 function renderIranMap(){
   const host=$('#iran-map-shape');if(!host)return;
-  const shapes=window.RAHISHO_IRAN_PROVINCES||[];const size=window.RAHISHO_IRAN_MAP_VIEWBOX||{width:814,height:748};
-  host.innerHTML='';
-  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox',`0 0 ${size.width} ${size.height}`);svg.setAttribute('role','img');svg.setAttribute('aria-label','نقشه‌ی تعاملی استان‌های ایران');
-  const g=document.createElementNS(svg.namespaceURI,'g');g.classList.add('iran-province-layer');
-  shapes.forEach(shape=>{
-    const name=normalizedProvince(shape.fa);const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',shape.d);path.setAttribute('class','iran-province'+(state.provinces.includes(name)?' visited':''));path.setAttribute('tabindex','0');path.setAttribute('role','button');path.dataset.province=name;path.setAttribute('aria-label',`${name}${state.provinces.includes(name)?'، ثبت‌شده':''}`);
-    const title=document.createElementNS(svg.namespaceURI,'title');title.textContent=name;path.append(title);
-    const activate=()=>{selectProvince(name);openModal('iran-modal')};path.addEventListener('click',activate);path.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate()}});g.append(path);
-  });
-  const pin=document.createElementNS(svg.namespaceURI,'g');pin.setAttribute('class','iran-trip-pin');pin.setAttribute('transform','translate(574 660)');pin.setAttribute('role','button');pin.setAttribute('tabindex','0');pin.setAttribute('aria-label','سفر پیش رو: قشم');pin.innerHTML='<circle class="pin-halo" r="18" cy="-10"/><path class="pin-shape" d="M0 0C-2-5-11-13-11-21a11 11 0 1 1 22 0C11-13 2-5 0 0Z"/><circle class="pin-core" cy="-21" r="3.5"/><title>سفر پیش رو: قشم</title>';
-  const openQeshm=()=>openTrip('qeshm');pin.addEventListener('click',e=>{e.stopPropagation();openQeshm()});pin.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openQeshm()}});g.append(pin);svg.append(g);host.append(svg);applyIranZoom();
+  if(!IRAN_DATA.provinces){
+    if(IRAN_DATA.failed){host.innerHTML='<div class="iran-map-loading">نقشه بارگذاری نشد. فایل‌های iran-provinces.geojson و iran-counties.geojson باید از طریق یک سرور محلی/وب باز شوند.</div>';return}
+    host.innerHTML='<div class="iran-map-loading">در حال بارگذاری نقشه…</div>';loadIranData().then(renderIranMap);return;
+  }
+  if(!host.querySelector('svg'))buildIranSvg(host);
+  refreshIranStyles();
+  if(pendingFocus){const n=pendingFocus;pendingFocus=null;focusIranProvince(n)}
 }
-function applyIranZoom(){const g=$('#iran-map-shape .iran-province-layer');if(!g)return;const size=window.RAHISHO_IRAN_MAP_VIEWBOX||{width:814,height:748};g.style.transform=`translate(${(size.width*(1-iranZoom))/2}px ${(size.height*(1-iranZoom))/2}px) scale(${iranZoom})`}
+function buildIranSvg(host){
+  host.innerHTML='';
+  const svg=mk('svg',{viewBox:`0 0 ${IRAN_W.toFixed(1)} ${IRAN_H.toFixed(1)}`,role:'img','aria-label':'نقشه‌ی تعاملی استان‌ها و شهرستان‌های ایران'},host);
+  const vp=mk('g',{class:'iran-viewport'},svg);
+  const provLayer=mk('g',{class:'iran-province-layer'},vp);
+  IRAN_DATA.provinces.forEach(p=>{
+    const name=normalizedProvince(p.fa);
+    const path=mk('path',{d:p.d,class:'iran-province',tabindex:'0',role:'button','data-province':name,'aria-label':name},provLayer);
+    const title=mk('title',{},path);title.textContent=name;
+    const activate=()=>{if(iranDrag.moved)return;focusIranProvince(name)};
+    path.addEventListener('click',activate);
+    path.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();focusIranProvince(name)}});
+  });
+  mk('g',{class:'iran-visited-layer','pointer-events':'none'},vp);
+  mk('g',{class:'iran-county-layer'},vp);
+  const trip=(window.RAHISHO_UPCOMING_TRIPS||[]).find(t=>t.id==='qeshm');
+  if(trip){
+    const [lon,lat]=trip.coordinates;
+    const pin=mk('g',{class:'iran-trip-pin',role:'button',tabindex:'0','aria-label':'سفر پیش رو: قشم','data-x':projX(lon).toFixed(2),'data-y':projY(lat).toFixed(2)},vp);
+    pin.innerHTML='<circle class="pin-halo" r="18" cy="-10"/><path class="pin-shape" d="M0 0C-2-5-11-13-11-21a11 11 0 1 1 22 0C11-13 2-5 0 0Z"/><circle class="pin-core" cy="-21" r="3.5"/><title>سفر پیش رو: قشم</title>';
+    pin.addEventListener('click',e=>{e.stopPropagation();openTrip('qeshm')});
+    pin.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openTrip('qeshm')}});
+  }
+  // focus bar (province name, back, list)
+  const view=host.parentElement;
+  if(!view.querySelector('.iran-focus-bar')){
+    const bar=document.createElement('div');bar.className='iran-focus-bar';bar.hidden=true;
+    bar.innerHTML='<button type="button" class="iran-back">‹ همه‌ی ایران</button><span class="iran-focus-name"><b></b><i></i></span><button type="button" class="iran-list-btn">فهرست</button>';
+    view.append(bar);
+    bar.querySelector('.iran-back').addEventListener('click',resetIranView);
+    bar.querySelector('.iran-list-btn').addEventListener('click',()=>{renderCityList();renderProvinceButtons();openModal('iran-modal')});
+  }
+  attachIranGestures(svg);
+  applyIranView(false);
+}
+function refreshIranStyles(){
+  const {svg}=iranEls();if(!svg)return;
+  const hasCounties=p=>(state.cities[p]||[]).length>0;
+  $$('.iran-province',svg).forEach(path=>{
+    const name=path.dataset.province;
+    path.classList.toggle('visited',state.provinces.includes(name)&&!hasCounties(name));
+    path.classList.toggle('touched',hasCounties(name));
+    path.classList.toggle('focused',name===focusedProvince);
+    path.setAttribute('aria-label',`${name}${state.provinces.includes(name)?'، ثبت‌شده':''}`);
+  });
+  svg.classList.toggle('has-focus',!!focusedProvince);iranEls().host.parentElement.classList.toggle('is-focused',!!focusedProvince);
+  // lit shahrestans overlay: only chosen shahrestans light up, everywhere
+  const overlay=$('.iran-visited-layer',svg);overlay.innerHTML='';
+  Object.entries(state.cities).forEach(([prov,names])=>{
+    const list=(IRAN_DATA.counties||{})[normalizedProvince(prov)]||[];
+    names.forEach(n=>{const c=list.find(x=>x.fa===n);if(c)mk('path',{d:countyPath(c),class:'iran-county-lit'},overlay)});
+  });
+  // county layer for focused province
+  const layer=$('.iran-county-layer',svg);layer.innerHTML='';
+  if(focusedProvince){
+    const chosen=state.cities[focusedProvince]||[];
+    (IRAN_DATA.counties[focusedProvince]||[]).forEach(c=>{
+      const on=chosen.includes(c.fa);
+      const path=mk('path',{d:countyPath(c),class:'iran-county'+(on?' visited':''),tabindex:'0',role:'button','aria-label':`شهرستان ${c.fa}${on?'، ثبت‌شده':''}`},layer);
+      const title=mk('title',{},path);title.textContent=c.fa;
+      const label=txt=>{const i=$('.iran-focus-bar .iran-focus-name i');if(i)i.textContent=txt};
+      path.addEventListener('pointerenter',()=>label(c.fa));path.addEventListener('pointerleave',()=>label($('.iran-focus-bar').dataset.count));path.addEventListener('focus',()=>label(c.fa));path.addEventListener('blur',()=>label($('.iran-focus-bar').dataset.count));
+      path.addEventListener('click',()=>{if(iranDrag.moved)return;toggleCounty(focusedProvince,c.fa)});
+      path.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleCounty(focusedProvince,c.fa)}});
+    });
+  }
+  const bar=$('.iran-focus-bar',iranEls().host.parentElement);
+  if(bar){bar.hidden=!focusedProvince;if(focusedProvince){const n=(IRAN_DATA.counties[focusedProvince]||[]).length;bar.dataset.count=`${fa(n)} شهرستان`;bar.querySelector('.iran-focus-name b').textContent=focusedProvince;bar.querySelector('.iran-focus-name i').textContent=bar.dataset.count}}
+}
+function applyIranView(animate=true){
+  const {svg,vp}=iranEls();if(!vp)return;
+  vp.classList.toggle('no-anim',!animate);
+  vp.style.transform=`translate(${iranView.x}px,${iranView.y}px) scale(${iranView.k})`;
+  svg.classList.toggle('zoomed',iranView.k>1.02);
+  $$('.iran-trip-pin',svg).forEach(pin=>{pin.setAttribute('transform',`translate(${pin.dataset.x} ${pin.dataset.y}) scale(${(1/iranView.k).toFixed(4)})`)});
+}
+function focusIranProvince(name){
+  name=normalizedProvince(name);
+  if(!IRAN_DATA.provinces){pendingFocus=name;return}
+  const p=IRAN_DATA.provinces.find(x=>normalizedProvince(x.fa)===name);if(!p)return;
+  focusedProvince=name;currentProvince=name;
+  const [minLon,minLat,maxLon,maxLat]=p.bbox;
+  const x0=projX(minLon),x1=projX(maxLon),y0=projY(maxLat),y1=projY(minLat);
+  const bw=Math.max(x1-x0,1),bh=Math.max(y1-y0,1);
+  const k=Math.max(1,Math.min(IRAN_W/(bw*1.3),IRAN_H/(bh*1.3),40));
+  iranView.k=k;iranView.x=IRAN_W/2-((x0+x1)/2)*k;iranView.y=IRAN_H/2-((y0+y1)/2)*k;
+  refreshIranStyles();applyIranView(true);renderCityList();
+}
+function resetIranView(){focusedProvince=null;iranView.k=1;iranView.x=0;iranView.y=0;refreshIranStyles();applyIranView(true)}
+function zoomIranBy(f,cx=IRAN_W/2,cy=IRAN_H/2){
+  const k2=Math.max(1,Math.min(60,iranView.k*f));if(k2===iranView.k)return;
+  iranView.x=cx-(cx-iranView.x)*(k2/iranView.k);iranView.y=cy-(cy-iranView.y)*(k2/iranView.k);iranView.k=k2;
+  clampIranView();
+  if(iranView.k<=1.02&&focusedProvince){focusedProvince=null;refreshIranStyles()}
+  applyIranView(false);
+}
+function clampIranView(){
+  const m=.25,k=iranView.k;
+  iranView.x=Math.min(IRAN_W*m,Math.max(IRAN_W*(1-k)-IRAN_W*m,iranView.x));
+  iranView.y=Math.min(IRAN_H*m,Math.max(IRAN_H*(1-k)-IRAN_H*m,iranView.y));
+}
+function attachIranGestures(svg){
+  const toVB=(clientX,clientY)=>{const pt=svg.createSVGPoint();pt.x=clientX;pt.y=clientY;const m=svg.getScreenCTM();return m?pt.matrixTransform(m.inverse()):{x:IRAN_W/2,y:IRAN_H/2}};
+  svg.addEventListener('wheel',e=>{e.preventDefault();const p=toVB(e.clientX,e.clientY);zoomIranBy(e.deltaY<0?1.2:1/1.2,p.x,p.y)},{passive:false});
+  let start=null;
+  svg.addEventListener('pointerdown',e=>{if(e.button!==0)return;start={x:e.clientX,y:e.clientY,vx:iranView.x,vy:iranView.y};iranDrag.moved=false});
+  window.addEventListener('pointermove',e=>{
+    if(!start)return;
+    const dx=e.clientX-start.x,dy=e.clientY-start.y;
+    if(!iranDrag.moved&&Math.hypot(dx,dy)<5)return;
+    if(iranView.k<=1.02)return;
+    iranDrag.moved=true;
+    const a=toVB(0,0),b=toVB(1,1),sx=b.x-a.x,sy=b.y-a.y;
+    iranView.x=start.vx+dx*sx;iranView.y=start.vy+dy*sy;clampIranView();applyIranView(false);
+  });
+  window.addEventListener('pointerup',()=>{start=null;setTimeout(()=>{iranDrag.moved=false},0)});
+}
 function openTrip(id){const trip=upcomingTrips.find(item=>item.id===id);if(!trip)return;$('#trip-title').textContent=trip.title;$('#trip-destination').textContent=trip.destination;$('#trip-dates').textContent=trip.date;$('#trip-summary').textContent=trip.summary;$('#trip-description').textContent=trip.description;openModal('trip-modal')}
 $$('[data-trip]').forEach(card=>{const activate=()=>openTrip(card.dataset.trip);card.addEventListener('click',activate);card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate()}})});
-$('#iran-zoom-in').addEventListener('click',()=>{iranZoom=Math.min(2.5,iranZoom+.25);applyIranZoom()});$('#iran-zoom-out').addEventListener('click',()=>{iranZoom=Math.max(1,iranZoom-.25);applyIranZoom()});$('#iran-zoom-reset').addEventListener('click',()=>{iranZoom=1;applyIranZoom()});
-$('#iran-map-shape').addEventListener('wheel',e=>{e.preventDefault();iranZoom=Math.max(1,Math.min(2.5,iranZoom+(e.deltaY<0?.12:-.12)));applyIranZoom()},{passive:false});
+$('#iran-zoom-in').addEventListener('click',()=>zoomIranBy(1.5));$('#iran-zoom-out').addEventListener('click',()=>zoomIranBy(1/1.5));$('#iran-zoom-reset').addEventListener('click',resetIranView);
 function setMapView(view){
   $$('.map-tab').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   $('#map-stage').classList.toggle('iran-view',view==='iran');
@@ -115,7 +269,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')$$('.modal-backdrop.
 $('#zoom-iran').addEventListener('click',()=>{setMapView('iran');renderProvinceButtons();renderCityList()});
 $$('.map-tab').forEach(button=>button.addEventListener('click',()=>setMapView(button.dataset.view)));
 $('#rotate-globe').addEventListener('click',()=>document.dispatchEvent(new Event('rahisho:rotate')));
-$('#mark-isfahan').addEventListener('click',()=>{if(!state.provinces.includes('اصفهان'))state.provinces.push('اصفهان');state.cities['اصفهان']=[...new Set([...(state.cities['اصفهان']||[]),'اصفهان'])];save();showToast('اصفهان به نقشه‌ی سفرهات اضافه شد')});
+$('#mark-isfahan').addEventListener('click',()=>{if(!state.provinces.includes('اصفهان'))state.provinces.push('اصفهان');state.cities['اصفهان']=[...new Set([...(state.cities['اصفهان']||[]),'اصفهان'])];save();renderIranMap();showToast('اصفهان به نقشه‌ی سفرهات اضافه شد')});
 $('#more-trips').addEventListener('click',()=>openTrip('qeshm'));
 $$('[data-page]').forEach(button=>button.addEventListener('click',()=>{const page=button.dataset.page;$$('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));if(page==='home')return;const names={journeys:'سفرها',community:'آدم‌های هم‌مسیر',profile:'پروفایل'};showToast(`${names[page]}؛ به‌زودی با راهیشو`)}));
 renderIranMap();updateStats();

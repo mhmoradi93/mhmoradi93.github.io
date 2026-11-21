@@ -29,7 +29,7 @@
 .iran-map-shape{position:absolute;top:51px;left:50%;transform:translateX(-50%);width:min(100%,430px);height:312px;padding:0;display:block;overflow:hidden;background:transparent;filter:drop-shadow(0 10px 15px #234b4424)}
 .iran-map-shape::before{display:none}
 .iran-map-shape svg{width:100%;height:100%;overflow:visible}
-.iran-province-layer{transform-box:view-box;transform-origin:center;transition:transform .22s ease}
+
 .iran-province{fill:#bdd3c7;stroke:#edc84e;stroke-width:2.2;stroke-linejoin:round;vector-effect:non-scaling-stroke;cursor:pointer;transition:fill .18s,filter .18s}
 .iran-province:nth-child(3n){fill:#b4cec1}.iran-province:nth-child(3n + 1){fill:#c8dacf}
 .iran-province:hover,.iran-province:focus-visible{fill:#e3d27f;outline:none;filter:drop-shadow(0 0 4px #d9b63d)}
@@ -55,3 +55,31 @@
 .trip-modal-description{font-size:12px;color:#666;line-height:2;padding:0 2px 6px}
 @keyframes pin-pulse{0%,100%{opacity:.12;transform:scale(.72)}50%{opacity:.3;transform:scale(1.2)}}
 @media(max-width:600px){.map-stage.iran-view{min-height:430px}.iran-map-view{height:410px;width:100%}.iran-map-shape{top:64px;width:calc(100% - 24px);height:305px}.iran-map-zoom{top:70px;left:3px}.iran-map-hint{font-size:8px;gap:5px}.trip-mini{padding:9px}.trip-mini b{font-size:9px}}
+
+/* ===== Iran map v2: provinces -> shahrestans (GeoJSON) ===== */
+.iran-map-shape svg{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.iran-map-shape svg.zoomed{touch-action:none;cursor:grab}
+.iran-viewport{transform-origin:0 0;transition:transform .55s cubic-bezier(.3,.7,.2,1)}
+.iran-viewport.no-anim{transition:none}
+.iran-province{stroke:#fff;stroke-width:.9;transition:fill .18s,opacity .3s}
+.iran-province.touched{stroke:#d9b63d;stroke-width:1.4}
+.iran-province.visited{filter:none}
+.iran-province:hover,.iran-province:focus-visible{filter:none}
+.iran-map-shape svg.has-focus .iran-province{opacity:.4;pointer-events:none}
+.iran-map-shape svg.has-focus .iran-province.focused{opacity:0}
+.iran-county-lit{fill:#f4ce58;stroke:#c99f1f;stroke-width:1;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.iran-county{fill:#c8dacf;stroke:#fff;stroke-width:1;vector-effect:non-scaling-stroke;stroke-linejoin:round;cursor:pointer;transition:fill .18s}
+.iran-county:nth-child(3n){fill:#b4cec1}
+.iran-county:nth-child(3n + 1){fill:#d6e4db}
+.iran-county:hover,.iran-county:focus-visible{fill:#e3d27f;outline:none}
+.iran-county.visited{fill:#f4ce58;stroke:#c99f1f;stroke-width:1.6}
+.iran-focus-bar{position:absolute;top:6px;right:0;left:0;z-index:4;display:flex;align-items:center;justify-content:center;gap:10px;font-size:11px;color:#4d5a53;pointer-events:none}
+.iran-focus-bar[hidden]{display:none}
+.iran-focus-bar button{pointer-events:auto;border:1px solid #e7e5dc;background:#fffefa;color:#3f7064;border-radius:99px;padding:6px 12px;font:500 10px inherit;font-family:inherit;cursor:pointer;box-shadow:0 2px 8px #33493c14}
+.iran-focus-bar button:hover{background:#f7edc5}
+.iran-focus-name{font-weight:600;background:#fffefaee;padding:5px 11px;border-radius:99px;border:1px solid #ece9df;pointer-events:none}
+.iran-map-view.is-focused .iran-map-title{display:none}
+.iran-map-loading{display:grid;place-items:center;height:100%;padding:20px;text-align:center;color:#7d8078;font-size:11px;line-height:1.8}
+.city-empty{font-size:10px;color:#999}
+.iran-focus-name i{font-style:normal;color:#7d8078;margin-inline-start:8px;font-weight:400}
+.iran-map-shape svg.has-focus .iran-province{opacity:.28}

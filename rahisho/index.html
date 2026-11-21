@@ -50,10 +50,10 @@
               <div class="globe-label">روی نقشه بزن و سفرهات رو ثبت کن <span>↗</span></div>
             </div>
             <div class="iran-map-view" id="iran-map-view">
-              <div class="iran-map-title"><span class="iran-map-dot"></span><div><b>رد پای تو در ایران</b><small>استان‌ها را لمس کن تا سفرهایت را روشن کنی</small></div></div>
+              <div class="iran-map-title"><span class="iran-map-dot"></span><div><b>رد پای تو در ایران</b><small>استانی را لمس کن تا بزرگ شود؛ بعد شهرستان‌ها را روشن کن</small></div></div>
               <div class="iran-map-zoom" aria-label="بزرگ‌نمایی نقشه‌ی ایران"><button id="iran-zoom-in" title="بزرگ‌نمایی">＋</button><button id="iran-zoom-out" title="کوچک‌نمایی">−</button><button id="iran-zoom-reset" title="نمای کامل">↺</button></div>
               <div class="iran-map-shape" id="iran-map-shape" aria-label="نقشه‌ی تعاملی استان‌های ایران"></div>
-              <div class="iran-map-hint"><span class="legend-dot"></span> استان‌هایی که دیدی <span>·</span> برای دیدن شهرها روی استان بزن <span class="iran-attribution">© OpenStreetMap · ODbL</span></div>
+              <div class="iran-map-hint"><span class="legend-dot"></span> شهرستان‌هایی که دیدی <span>·</span> روی استان بزن <span class="iran-attribution">© OpenStreetMap · ODbL · Natural Earth</span></div>
             </div>
             <div class="map-caption"><span class="legend-dot"></span><span>کشورهایی که دیدی</span><span class="caption-sep">·</span><span>برای ثبت کشور جدید روی کره بزن</span></div>
             <button class="zoom-iran" id="zoom-iran"><span>⌖</span> ریز سفرهای ایران <b>←</b></button>
@@ -95,10 +95,10 @@
 
   <div class="modal-backdrop" id="iran-modal" aria-hidden="true">
     <section class="modal iran-modal" role="dialog" aria-modal="true" aria-labelledby="iran-title">
-      <button class="modal-close" data-close="iran-modal" aria-label="بستن">×</button><span class="modal-kicker">ایران‌گردی‌های تو</span><h2 id="iran-title">کدوم گوشه‌ی ایران رو دیدی؟</h2><p>استان یا شهرهایی که سفر کردی رو روشن کن.</p>
+      <button class="modal-close" data-close="iran-modal" aria-label="بستن">×</button><span class="modal-kicker">ایران‌گردی‌های تو</span><h2 id="iran-title">کدوم گوشه‌ی ایران رو دیدی؟</h2><p>استان یا شهرستان‌هایی که سفر کردی رو روشن کن.</p>
       <div class="iran-progress"><span>استان‌های ثبت‌شده</span><b><span id="iran-count-modal">۴</span> از ۳۱</b><div class="progress-track"><i id="iran-progress-bar"></i></div></div>
       <div class="province-grid" id="province-grid"></div>
-      <div class="city-panel" id="city-panel"><div class="city-panel-title">شهرهای <b id="city-province-name">تهران</b><span>برای انتخاب بزن</span></div><div class="city-list" id="city-list"></div></div>
+      <div class="city-panel" id="city-panel"><div class="city-panel-title">شهرستان‌های <b id="city-province-name">تهران</b><span>برای انتخاب بزن</span></div><div class="city-list" id="city-list"></div></div>
       <div class="modal-actions"><span class="selected-note">انتخاب‌ها خودکار ذخیره می‌شوند</span><button class="primary-button" data-close="iran-modal">انجام شد <span>✓</span></button></div>
     </section>
   </div>
@@ -113,7 +113,6 @@
   </div>
 
   <div class="toast" id="toast" role="status"></div>
-  <script src="iran-map-data.js?v=20261120g"></script>
   <script src="app.js"></script>
   <script type="module" src="earth3d.js?v=20261120g"></script>
 </body>
