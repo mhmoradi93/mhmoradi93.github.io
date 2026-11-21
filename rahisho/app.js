@@ -237,18 +237,36 @@ function clampIranView(){
 function attachIranGestures(svg){
   const toVB=(clientX,clientY)=>{const pt=svg.createSVGPoint();pt.x=clientX;pt.y=clientY;const m=svg.getScreenCTM();return m?pt.matrixTransform(m.inverse()):{x:IRAN_W/2,y:IRAN_H/2}};
   svg.addEventListener('wheel',e=>{e.preventDefault();const p=toVB(e.clientX,e.clientY);zoomIranBy(e.deltaY<0?1.2:1/1.2,p.x,p.y)},{passive:false});
-  let start=null;
-  svg.addEventListener('pointerdown',e=>{if(e.button!==0)return;start={x:e.clientX,y:e.clientY,vx:iranView.x,vy:iranView.y};iranDrag.moved=false});
+  const ptrs=new Map();let start=null,pinch=null;
+  const startDrag=p=>{start={x:p.x,y:p.y,vx:iranView.x,vy:iranView.y}};
+  svg.addEventListener('pointerdown',e=>{
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1){startDrag(ptrs.get(e.pointerId));iranDrag.moved=false}
+    else if(ptrs.size===2){start=null;const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)};iranDrag.moved=true}
+  });
   window.addEventListener('pointermove',e=>{
+    if(!ptrs.has(e.pointerId))return;
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size>=2&&pinch){ // two-finger pinch: zoom around the midpoint
+      const [a,b]=[...ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y),m=toVB((a.x+b.x)/2,(a.y+b.y)/2);
+      if(pinch.d>0&&d>0)zoomIranBy(d/pinch.d,m.x,m.y);
+      pinch.d=d;return;
+    }
     if(!start)return;
     const dx=e.clientX-start.x,dy=e.clientY-start.y;
     if(!iranDrag.moved&&Math.hypot(dx,dy)<5)return;
     if(iranView.k<=1.02)return;
     iranDrag.moved=true;
-    const a=toVB(0,0),b=toVB(1,1),sx=b.x-a.x,sy=b.y-a.y;
+    const a0=toVB(0,0),b0=toVB(1,1),sx=b0.x-a0.x,sy=b0.y-a0.y;
     iranView.x=start.vx+dx*sx;iranView.y=start.vy+dy*sy;clampIranView();applyIranView(false);
   });
-  window.addEventListener('pointerup',()=>{start=null;setTimeout(()=>{iranDrag.moved=false},0)});
+  const end=e=>{
+    ptrs.delete(e.pointerId);
+    if(ptrs.size<2)pinch=null;
+    if(ptrs.size===1)startDrag([...ptrs.values()][0]);
+    else if(!ptrs.size){start=null;setTimeout(()=>{iranDrag.moved=false},0)}
+  };
+  window.addEventListener('pointerup',end);window.addEventListener('pointercancel',end);
 }
 function openTrip(id){const trip=upcomingTrips.find(item=>item.id===id);if(!trip)return;$('#trip-title').textContent=trip.title;$('#trip-destination').textContent=trip.destination;$('#trip-dates').textContent=trip.date;$('#trip-summary').textContent=trip.summary;$('#trip-description').textContent=trip.description;openModal('trip-modal')}
 $$('[data-trip]').forEach(card=>{const activate=()=>openTrip(card.dataset.trip);card.addEventListener('click',activate);card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate()}})});
@@ -270,8 +288,7 @@ $('#zoom-iran').addEventListener('click',()=>{setMapView('iran');renderProvinceB
 $$('.map-tab').forEach(button=>button.addEventListener('click',()=>setMapView(button.dataset.view)));
 $('#rotate-globe').addEventListener('click',()=>document.dispatchEvent(new Event('rahisho:rotate')));
 $('#mark-isfahan').addEventListener('click',()=>{if(!state.provinces.includes('اصفهان'))state.provinces.push('اصفهان');state.cities['اصفهان']=[...new Set([...(state.cities['اصفهان']||[]),'اصفهان'])];save();renderIranMap();showToast('اصفهان به نقشه‌ی سفرهات اضافه شد')});
-$('#more-trips').addEventListener('click',()=>openTrip('qeshm'));
-$$('[data-page]').forEach(button=>button.addEventListener('click',()=>{const page=button.dataset.page;$$('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));if(page==='home')return;const names={journeys:'سفرها',community:'آدم‌های هم‌مسیر',profile:'پروفایل'};showToast(`${names[page]}؛ به‌زودی با راهیشو`)}));
+$('#more-trips').addEventListener('click',()=>window.RahishoPages&&RahishoPages.show('journeys'));
 renderIranMap();updateStats();
 document.addEventListener('rahisho:world-ready',event=>{
   worldCountryFeatures=event.detail;

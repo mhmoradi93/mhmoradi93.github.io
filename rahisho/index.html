@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#f6f4ef" />
+  <meta name="theme-color" content="#070c18" />
   <title>راهیشو — نقشه‌ی سفرهای تو</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="pages.css" />
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js"}}</script>
 </head>
 <body>
@@ -34,7 +35,7 @@
       <section class="stats-row" aria-label="آمار سفرها">
         <article class="stat-card stat-world"><div class="stat-icon">🌍</div><div class="stat-copy"><span>از دنیارو دیدی</span><strong id="world-percent">۱.۵٪</strong><small><b id="country-count">۳</b> کشور از ۱۹۵ کشور</small></div><div class="stat-ring"><span id="world-ring">۱.۵</span></div></article>
         <article class="stat-card stat-iran"><div class="stat-icon">🧭</div><div class="stat-copy"><span>از ایرانو گشتی</span><strong id="iran-percent">۱۳٪</strong><small><b id="province-count">۴</b> استان از ۳۱ استان</small></div><div class="mini-map" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
-        <article class="stat-card stat-next"><div class="next-icon">↗</div><div class="stat-copy"><span>ماجراجویی بعدی</span><strong>قشم، جزیره‌ی نقره‌ای</strong><small>۱۲ آذر · ۴ روز تا حرکت</small></div><button class="arrow-button" aria-label="دیدن سفر بعدی">←</button></article>
+        <article class="stat-card stat-next"><div class="next-icon">↗</div><div class="stat-copy"><span>ماجراجویی بعدی</span><strong>قشم، جزیره‌ی نقره‌ای</strong><small>۱۲ آذر · ۱۲ روز تا حرکت</small></div><button class="arrow-button" aria-label="دیدن سفر بعدی">←</button></article>
       </section>
 
       <section class="content-grid">
@@ -79,8 +80,11 @@
       <section class="bottom-quote"><span>✳</span><span>سفر فقط رسیدن نیست؛ دیدنِ چیزهایی‌ست که قبلش نمی‌دیدی.</span><b>— راهیشو</b></section>
     </main>
 
+    <main class="main page" id="page-journeys" hidden></main>
+    <main class="main page" id="page-community" hidden></main>
+
     <nav class="bottom-nav" aria-label="ناوبری موبایل">
-      <button class="active" data-page="home"><span>⌂</span><small>اطلس</small></button><button data-page="journeys"><span>◷</span><small>سفرها</small></button><button data-page="community"><span>✳</span><small>آدم‌ها</small></button><button data-page="profile"><span>◉</span><small>من</small></button>
+      <button class="active" data-page="home"><span>⌂</span><small>اطلس</small></button><button data-page="journeys"><span>◷</span><small>سفرها</small></button><button data-page="community"><span>✳</span><small>دوستان</small></button><button data-page="profile"><span>◉</span><small>من</small></button>
     </nav>
   </div>
 
@@ -114,6 +118,7 @@
 
   <div class="toast" id="toast" role="status"></div>
   <script src="app.js"></script>
+  <script src="pages.js?v=1"></script>
   <script type="module" src="earth3d.js?v=20261120g"></script>
 </body>
 </html>
